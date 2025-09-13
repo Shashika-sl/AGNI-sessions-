@@ -1,4 +1,5 @@
-import mega from 'megajs';
+import * as mega from 'megajs';
+import fs from 'fs';
 
 const auth = {
     email: 'shashikasdddrt@gmail.com',
@@ -10,8 +11,8 @@ export const upload = (data, name) => {
     return new Promise((resolve, reject) => {
         try {
             const storage = new mega.Storage(auth, () => {
-                data.pipe(storage.upload({ name: name, allowUploadBuffering: true }));
-                storage.on('add', (file) => {
+                data.pipe(storage.upload({name: name, allowUploadBuffering: true}));
+                storage.on("add", (file) => {
                     file.link((err, url) => {
                         if (err) throw err;
                         storage.close();
