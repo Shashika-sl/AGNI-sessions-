@@ -23,7 +23,7 @@ router.get('/', async (req, res) => {
     let num = req.query.number;
 
     async function DanuwaPair() {
-        const { state, saveCreds } = await useMultiFileAuthState(`./session`);
+        const { state, saveCreds } = await useMultiFileAuthState(`/tmp/session`);
         try {
             let DanuwaPairWeb = makeWASocket({
                 auth: {
