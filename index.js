@@ -2,7 +2,7 @@ import express from "express";
 import bodyParser from "body-parser";
 import { fileURLToPath } from "url";
 import { dirname, join } from "path";
-import codeRouter from "./pair.js";
+import codeRouter from "./pair.js";  // ✅ Import works now
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
@@ -19,14 +19,14 @@ app.use(bodyParser.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 
 // ✅ API routes
-app.use("/code", codeRouter);
+app.use("/", codeRouter);
 
 // ✅ Root route
 app.get("/", (req, res) => {
   res.sendFile(join(__dirname, "pair.html"));
 });
 
-// ✅ Health check endpoint (Koyeb / Render / Vercel use කරන්නේ මේක check කරන්න)
+// ✅ Health check endpoint
 app.get("/health", (req, res) => {
   res.status(200).send("OK");
 });
