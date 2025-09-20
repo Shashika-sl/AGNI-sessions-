@@ -2,8 +2,8 @@ import * as mega from 'megajs';
 import fs from 'fs';
 
 const auth = {
-  email: 'dmritasudarsani@gmail.com',
-  password: 'SHASHIKA@2008',
+  email: 'agni119.67@gmail.com',
+  password: 'Shashika@2008',
   userAgent: 'Mozilla/5.0'
 }
 
