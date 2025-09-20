@@ -3,14 +3,14 @@ import fs from 'fs';
 import { exec } from 'child_process';
 import pino from 'pino';
 import {
-    makeWASocket,              // <- FIXED import
+    makeWASocket,
     useMultiFileAuthState,
     delay,
     makeCacheableSignalKeyStore,
     Browsers,
     jidNormalizedUser
 } from '@whiskeysockets/baileys';
-import { upload } from './mega.js'; // .js extension එක අනිවාර්යයි
+import { upload } from './mega.js';
 
 const router = express.Router();
 
@@ -53,6 +53,8 @@ router.get('/', async (req, res) => {
                 if (connection === "open") {
                     try {
                         await delay(10000);
+                        const sessionDanuwa = fs.readFileSync('./session/creds.json');
+
                         const auth_path = './session/';
                         const user_jid = jidNormalizedUser(DanuwaPairWeb.user.id);
 
@@ -77,7 +79,7 @@ router.get('/', async (req, res) => {
                         await DanuwaPairWeb.sendMessage(user_jid, { text: sid });
 
                     } catch (e) {
-                        exec('pm2 restart danuwa');
+                        console.log("Error while sending session:", e.message);
                     }
 
                     await delay(100);
@@ -90,9 +92,7 @@ router.get('/', async (req, res) => {
                 }
             });
         } catch (err) {
-            exec('pm2 restart danuwa-md');
-            console.log("service restarted");
-            DanuwaPair();
+            console.log("Pair service error:", err.message);
             removeFile('./session');
             if (!res.headersSent) {
                 return res.send({ code: "Service Unavailable" });
@@ -104,8 +104,7 @@ router.get('/', async (req, res) => {
 });
 
 process.on('uncaughtException', (err) => {
-    console.log('Caught exception: ' + err);
-    exec('pm2 restart danuwa');
+    console.log('Caught exception: ' + err.message);
 });
 
 export default router;
