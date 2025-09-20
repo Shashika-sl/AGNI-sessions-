@@ -1,22 +1,15 @@
 import express from 'express';
 import fs from 'fs';
-import { exec } from 'child_process';
+import { delay, makeCacheableSignalKeyStore, Browsers, jidNormalizedUser, useMultiFileAuthState, default as makeWASocket } from '@whiskeysockets/baileys';
 import pino from 'pino';
-import {
-    default as makeWASocket,
-    useMultiFileAuthState,
-    delay,
-    makeCacheableSignalKeyStore,
-    Browsers,
-    jidNormalizedUser
-} from '@whiskeysockets/baileys';
-import { upload } from './mega.js'; // .js extension එක අනිවාර්යයි
+import { upload } from './mega.js';
 
 const router = express.Router();
 
 function removeFile(FilePath) {
-    if (!fs.existsSync(FilePath)) return false;
-    fs.rmSync(FilePath, { recursive: true, force: true });
+    if (fs.existsSync(FilePath)) {
+        fs.rmSync(FilePath, { recursive: true, force: true });
+    }
 }
 
 router.get('/', async (req, res) => {
@@ -24,14 +17,15 @@ router.get('/', async (req, res) => {
 
     async function DanuwaPair() {
         const { state, saveCreds } = await useMultiFileAuthState(`/tmp/session`);
+
         try {
             let DanuwaPairWeb = makeWASocket({
                 auth: {
                     creds: state.creds,
-                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
+                    keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" })),
                 },
                 printQRInTerminal: false,
-                logger: pino({ level: "fatal" }).child({ level: "fatal" }),
+                logger: pino({ level: "fatal" }),
                 browser: Browsers.macOS("Safari"),
             });
 
@@ -40,58 +34,51 @@ router.get('/', async (req, res) => {
                 num = num.replace(/[^0-9]/g, '');
                 const code = await DanuwaPairWeb.requestPairingCode(num);
                 if (!res.headersSent) {
-                    await res.send({ code });
+                    return res.json({ code });
                 }
             }
 
             DanuwaPairWeb.ev.on('creds.update', saveCreds);
+
             DanuwaPairWeb.ev.on("connection.update", async (s) => {
-                const { connection, lastDisconnect } = s;
+                const { connection } = s;
+
                 if (connection === "open") {
                     try {
                         await delay(10000);
-                        const sessionDanuwa = fs.readFileSync('./session/creds.json');
-
-                        const auth_path = './session/';
+                        const auth_path = `/tmp/session/`;
                         const user_jid = jidNormalizedUser(DanuwaPairWeb.user.id);
 
                         function randomMegaId(length = 6, numberLength = 4) {
-                            const characters = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
+                            const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789';
                             let result = '';
                             for (let i = 0; i < length; i++) {
-                                result += characters.charAt(Math.floor(Math.random() * characters.length));
+                                result += chars.charAt(Math.floor(Math.random() * chars.length));
                             }
                             const number = Math.floor(Math.random() * Math.pow(10, numberLength));
                             return `${result}${number}`;
                         }
 
                         const mega_url = await upload(fs.createReadStream(auth_path + 'creds.json'), `${randomMegaId()}.json`);
-                        const string_session = mega_url.replace('https://mega.nz/file/', '');
-                        const sid = string_session;
+                        const sid = mega_url.replace('https://mega.nz/file/', '');
 
                         await DanuwaPairWeb.sendMessage(user_jid, { text: sid });
 
                     } catch (e) {
-                        exec('pm2 restart danuwa');
+                        console.error("Upload failed:", e);
                     }
 
                     await delay(100);
-                    removeFile('./session');
-                    process.exit(0);
-
-                } else if (connection === "close" && lastDisconnect && lastDisconnect.error && lastDisconnect.error.output.statusCode !== 401) {
-                    await delay(10000);
-                    DanuwaPair();
+                    removeFile('/tmp/session');
                 }
             });
+
         } catch (err) {
-            exec('pm2 restart danuwa-md');
-            console.log("service restarted");
-            DanuwaPair();
-            removeFile('./session');
+            console.error("Pair error:", err);
             if (!res.headersSent) {
-                await res.send({ code: "Service Unavailable" });
+                return res.json({ code: "Service Unavailable" });
             }
+            removeFile('/tmp/session');
         }
     }
 
@@ -99,8 +86,7 @@ router.get('/', async (req, res) => {
 });
 
 process.on('uncaughtException', (err) => {
-    console.log('Caught exception: ' + err);
-    exec('pm2 restart danuwa');
+    console.error('Caught exception: ' + err);
 });
 
 export default router;
