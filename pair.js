@@ -1,8 +1,28 @@
+import express from "express";
+import fs from "fs";
+import pino from "pino";
+import {
+  makeWASocket,
+  useMultiFileAuthState,
+  delay,
+  makeCacheableSignalKeyStore,
+  Browsers,
+  jidNormalizedUser,
+} from "@whiskeysockets/baileys";
+import { upload } from "./mega.js";
+
+const router = express.Router();
+
+function removeFile(FilePath) {
+  if (!fs.existsSync(FilePath)) return false;
+  fs.rmSync(FilePath, { recursive: true, force: true });
+}
+
 router.get("/code", async (req, res) => {
   let num = req.query.number;
 
   if (!num) {
-    return res.status(400).json({ error: "❌ Please provide ?number=947XXXXXXXX" });
+    return res.status(400).send({ error: "❌ Please provide ?number=947XXXXXXXX" });
   }
 
   async function DanuwaPair() {
@@ -22,10 +42,11 @@ router.get("/code", async (req, res) => {
       });
 
       if (!DanuwaPairWeb.authState.creds.registered) {
+        await delay(1500);
         num = num.replace(/[^0-9]/g, "");
         const code = await DanuwaPairWeb.requestPairingCode(num);
         if (!res.headersSent) {
-          return res.json({ code }); // ✅ JSON format
+          return res.send({ code });
         }
       }
 
@@ -81,10 +102,16 @@ router.get("/code", async (req, res) => {
       console.log("Pair service error:", err.message);
       removeFile("./session");
       if (!res.headersSent) {
-        return res.json({ code: "❌ Service Unavailable" });
+        return res.send({ code: "Service Unavailable" });
       }
     }
   }
 
   return await DanuwaPair();
 });
+
+process.on("uncaughtException", (err) => {
+  console.log("Caught exception: " + err.message);
+});
+
+export default router;   // ✅ Important line
